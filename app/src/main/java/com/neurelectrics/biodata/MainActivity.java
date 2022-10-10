@@ -5,6 +5,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -114,9 +115,9 @@ public class MainActivity extends Activity implements SensorEventListener {
             public void run() {
                     JSONObject data=new JSONObject();
                     try {
-                        data.put("accX", accX);
-                        data.put("accY", accY);
-                        data.put("accZ", accZ);
+                        data.put("aX", accX);
+                        data.put("aY", accY);
+                        data.put("aZ", accZ);
                         data.put("gX", gX);
                         data.put("gY", gY);
                         data.put("gZ", gZ);
@@ -137,7 +138,11 @@ public class MainActivity extends Activity implements SensorEventListener {
 
 
 
-
+    //request to use the body sensors
+        String[] perms = {"android.permission.BODY_SENSORS"};
+        if (checkSelfPermission("android.permission.BODY_SENSORS") != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(perms, 200);
+        };
     }
     @Override
     public final void onAccuracyChanged(Sensor sensor, int accuracy) {
@@ -157,7 +162,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             gZ=event.values[2];
         }
         if (event.sensor.getType()==Sensor.TYPE_HEART_RATE) {
-            heartRate=event.data[0];
+            heartRate=event.values[0];
         }
     }
 
@@ -190,7 +195,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
         //initialize heart rate sensor
         Sensor hr;
-        hr = sm.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        hr = sm.getDefaultSensor(Sensor.TYPE_HEART_RATE);
         if (hr != null) {
             sm.registerListener(this, hr, ACC_SAMPLE_RATE*1000);
 
