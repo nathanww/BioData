@@ -41,15 +41,22 @@ import com.android.volley.toolbox.HttpHeaderParser;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
+import org.json.JSONObject;
+
 public class MainActivity extends Activity implements SensorEventListener {
 
     private TextView mTextView;
     private ActivityMainBinding binding;
     private SensorManager sm;
-    private float accX=0;
-    private float accY=0;
-    private float accZ=0;
+    private float accX=-1;
+    private float accY=-1;
+    private float accZ=-1;
+    private float gX=-1;
+    private float gY=-1;
+    private float gZ=-1;
+    private float heartRate=-1;
     private int ACC_SAMPLE_RATE=1000;  //default is to sample the accelerometer every second
+    private int GLOBAL_UPDATE_RATE=1000;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -100,12 +107,26 @@ public class MainActivity extends Activity implements SensorEventListener {
             }
         }, 1);
 
+        //start the sensors
+        initializeSensors();
         final Handler dataUpdate = new Handler();
-
         dataUpdate.postDelayed(new Runnable() {
             public void run() {
-                    //sendData("online",""+pid);
-                    dataUpdate.postDelayed(this, 1000);
+                    JSONObject data=new JSONObject();
+                    try {
+                        data.put("accX", accX);
+                        data.put("accY", accY);
+                        data.put("accZ", accZ);
+                        data.put("gX", gX);
+                        data.put("gY", gY);
+                        data.put("gZ", gZ);
+                        data.put("hr", heartRate);
+                    }
+                    catch (Exception e) {
+
+                    }
+                    sendData(data.toString(),""+pid);
+                    dataUpdate.postDelayed(this, GLOBAL_UPDATE_RATE);
 
 
             }
@@ -130,12 +151,20 @@ public class MainActivity extends Activity implements SensorEventListener {
             accY=event.values[1];
             accZ=event.values[2];
         }
+        if (event.sensor.getType()==Sensor.TYPE_GYROSCOPE) {
+            gX=event.values[0];
+            gY=event.values[1];
+            gZ=event.values[2];
+        }
+        if (event.sensor.getType()==Sensor.TYPE_HEART_RATE) {
+            heartRate=event.data[0];
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-
+        initializeSensors();
     }
 
     @Override
@@ -150,6 +179,20 @@ public class MainActivity extends Activity implements SensorEventListener {
         acc = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         if (acc != null) {
             sm.registerListener(this, acc, ACC_SAMPLE_RATE*1000);
+
+        }
+        //initialize gyro
+        Sensor gyro;
+        gyro = sm.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        if (gyro != null) {
+            sm.registerListener(this, gyro, ACC_SAMPLE_RATE*1000);
+
+        }
+        //initialize heart rate sensor
+        Sensor hr;
+        hr = sm.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        if (hr != null) {
+            sm.registerListener(this, hr, ACC_SAMPLE_RATE*1000);
 
         }
     }
