@@ -1,19 +1,33 @@
 package com.neurelectrics.biodata;
 
 import android.app.Activity;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.PowerManager;
 import android.os.StrictMode;
 import android.util.Log;
+import android.view.WindowManager;
 import android.widget.TextView;
 
+import com.jakewharton.processphoenix.ProcessPhoenix;
 import com.neurelectrics.biodata.databinding.ActivityMainBinding;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.DefaultRetryPolicy;
@@ -27,14 +41,23 @@ import com.android.volley.toolbox.HttpHeaderParser;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements SensorEventListener {
 
     private TextView mTextView;
     private ActivityMainBinding binding;
-
+    private SensorManager sm;
+    private float accX=0;
+    private float accY=0;
+    private float accZ=0;
+    private int ACC_SAMPLE_RATE=1000;  //default is to sample the accelerometer every second
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        binding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        //initialize sensor manager
+        sm = ((SensorManager)getSystemService(SENSOR_SERVICE));
         //allow internet accsess on UI thread
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
         StrictMode.setThreadPolicy(policy);
@@ -42,22 +65,102 @@ public class MainActivity extends Activity {
         PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
                 "BioData:dataAcquistion");
         wakeLock.acquire();
+        SharedPreferences sharedPref = getApplicationContext().getSharedPreferences("prefs", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPref.edit();
+
+        //check to see if we have a device ID, if not then make one
+        if (sharedPref.getInt("pid",-1) == -1) {
+            Random rand = new Random();
+            editor.putInt("pid",rand.nextInt(2147483647));
+            editor.commit();
+        }
+        int pid=sharedPref.getInt("pid",-1);
 
 
-        binding = ActivityMainBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+
+
+
+
+        final Handler netCheck = new Handler();
+
+        netCheck.postDelayed(new Runnable() {
+            public void run() {
+                TextView partid=(TextView) findViewById(R.id.partid);
+                partid.setText("Participant:"+pid);
+                TextView warnings=(TextView) findViewById(R.id.warnings);
+                if (!checkInternet()) {
+                    warnings.setText("No internet connection");
+                    netCheck.postDelayed(this, 2000);
+                }
+                else {
+                    warnings.setText("");
+                    netCheck.postDelayed(this, 120000);
+                }
+
+            }
+        }, 1);
+
+        final Handler dataUpdate = new Handler();
+
+        dataUpdate.postDelayed(new Runnable() {
+            public void run() {
+                    //sendData("online",""+pid);
+                    dataUpdate.postDelayed(this, 1000);
+
+
+            }
+        }, 1);
+
+
+
+
+
+
+
+    }
+    @Override
+    public final void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // Do something here if sensor accuracy changes.
+    }
+
+    @Override
+    public final void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType()==Sensor.TYPE_ACCELEROMETER) {
+            accX=event.values[0];
+            accY=event.values[1];
+            accZ=event.values[2];
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
 
     }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+        sm.unregisterListener(this);
+    }
 
+    void initializeSensors() {
+        //initialize accelerometer
+        Sensor acc;
+        acc = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        if (acc != null) {
+            sm.registerListener(this, acc, ACC_SAMPLE_RATE*1000);
+
+        }
+    }
     void sendData(String data, String userID) {
 
         try {
             RequestQueue requestQueue = Volley.newRequestQueue(this);
-            String URL = "https://biostream-1024.appspot.com/sendps";
+            String URL = "https://biostream-1024.appspot.com/sendps?user="+userID+"&data="+data;
 
 
-            StringRequest stringRequest = new StringRequest(Request.Method.POST, URL, new Response.Listener<String>() {
+            StringRequest stringRequest = new StringRequest(Request.Method.GET, URL, new Response.Listener<String>() {
                 @Override
                 public void onResponse(String response) {
                     Log.i("VOLLEY", response);
@@ -68,14 +171,7 @@ public class MainActivity extends Activity {
                     Log.e("VOLLEY", error.toString());
                 }
             }) {
-                @Override
-                protected Map<String,String> getParams(){
-                    Map<String,String> params = new HashMap<String, String>();
-                    params.put("user",userID);
-                    params.put("data",data);
-                    Log.i("sleepdata",data);
-                    return params;
-                }
+
 
                 @Override
                 protected Response<String> parseNetworkResponse(NetworkResponse response) {
