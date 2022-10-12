@@ -1,6 +1,7 @@
 package com.neurelectrics.biodata;
 
 import android.app.Activity;
+import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -55,6 +56,13 @@ public class MainActivity extends Activity implements SensorEventListener {
     private float gX=-1;
     private float gY=-1;
     private float gZ=-1;
+    private float mX=-1;
+    private float mY=-1;
+    private float mZ=-1;
+
+    private float ambientTemp=-1;
+    private float pressure=-1;
+    private float lightlevel=-1;
     private float heartRate=-1;
     private int ACC_SAMPLE_RATE=1000;  //default is to sample the accelerometer every second
     private int GLOBAL_UPDATE_RATE=1000;
@@ -65,14 +73,14 @@ public class MainActivity extends Activity implements SensorEventListener {
         setContentView(binding.getRoot());
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         //initialize sensor manager
-        sm = ((SensorManager)getSystemService(SENSOR_SERVICE));
+        //sm = ((SensorManager)getSystemService(SENSOR_SERVICE));
         //allow internet accsess on UI thread
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
         StrictMode.setThreadPolicy(policy);
-        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-        PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
-                "BioData:dataAcquistion");
-        wakeLock.acquire();
+        //PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        //PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
+        //        "BioData:dataAcquistion");
+        //wakeLock.acquire();
         SharedPreferences sharedPref = getApplicationContext().getSharedPreferences("prefs", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPref.edit();
 
@@ -108,7 +116,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             }
         }, 1);
 
-        //start the sensors
+        /*//start the sensors
         initializeSensors();
         final Handler dataUpdate = new Handler();
         dataUpdate.postDelayed(new Runnable() {
@@ -122,6 +130,10 @@ public class MainActivity extends Activity implements SensorEventListener {
                         data.put("gY", gY);
                         data.put("gZ", gZ);
                         data.put("hr", heartRate);
+                        data.put("light", lightlevel);
+                        data.put("temp", ambientTemp);
+                        data.put("pr", pressure);
+                        data.put("aq",System.currentTimeMillis());
                     }
                     catch (Exception e) {
 
@@ -131,7 +143,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
 
             }
-        }, 1);
+        }, 1);*/
 
 
 
@@ -143,6 +155,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (checkSelfPermission("android.permission.BODY_SENSORS") != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(perms, 200);
         };
+
+        //start the monitoring service
+        Intent i= new Intent(getApplicationContext(), dataservice.class);
+        getApplicationContext().startService(i);
     }
     @Override
     public final void onAccuracyChanged(Sensor sensor, int accuracy) {
@@ -164,8 +180,17 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (event.sensor.getType()==Sensor.TYPE_HEART_RATE) {
             heartRate=event.values[0];
         }
+        if (event.sensor.getType()==Sensor.TYPE_LIGHT) {
+            lightlevel=event.values[0];
+        }
+        if (event.sensor.getType()==Sensor.TYPE_AMBIENT_TEMPERATURE) {
+            ambientTemp=event.values[0];
+        }
+        if (event.sensor.getType()==Sensor.TYPE_PRESSURE) {
+            pressure=event.values[0];
+        }
     }
-
+/*
     @Override
     protected void onResume() {
         super.onResume();
@@ -176,67 +201,22 @@ public class MainActivity extends Activity implements SensorEventListener {
     protected void onPause() {
         super.onPause();
         sm.unregisterListener(this);
+    }*/
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        /*
+        Intent intent = new Intent(MainActivity.this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP
+                | Intent.FLAG_ACTIVITY_CLEAR_TASK
+                | Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, PendingIntent.FLAG_ONE_SHOT);
+
+        AlarmManager mgr = (AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE);
+        mgr.set(AlarmManager.RTC, System.currentTimeMillis() + 1000, pendingIntent);*/
     }
 
-    void initializeSensors() {
-        //initialize accelerometer
-        Sensor acc;
-        acc = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        if (acc != null) {
-            sm.registerListener(this, acc, ACC_SAMPLE_RATE*1000);
 
-        }
-        //initialize gyro
-        Sensor gyro;
-        gyro = sm.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-        if (gyro != null) {
-            sm.registerListener(this, gyro, ACC_SAMPLE_RATE*1000);
-
-        }
-        //initialize heart rate sensor
-        Sensor hr;
-        hr = sm.getDefaultSensor(Sensor.TYPE_HEART_RATE);
-        if (hr != null) {
-            sm.registerListener(this, hr, ACC_SAMPLE_RATE*1000);
-
-        }
-    }
-    void sendData(String data, String userID) {
-
-        try {
-            RequestQueue requestQueue = Volley.newRequestQueue(this);
-            String URL = "https://biostream-1024.appspot.com/sendps?user="+userID+"&data="+data;
-
-
-            StringRequest stringRequest = new StringRequest(Request.Method.GET, URL, new Response.Listener<String>() {
-                @Override
-                public void onResponse(String response) {
-                    Log.i("VOLLEY", response);
-                }
-            }, new Response.ErrorListener() {
-                @Override
-                public void onErrorResponse(VolleyError error) {
-                    Log.e("VOLLEY", error.toString());
-                }
-            }) {
-
-
-                @Override
-                protected Response<String> parseNetworkResponse(NetworkResponse response) {
-                    String responseString = "";
-                    if (response != null) {
-                        responseString = String.valueOf(response.statusCode);
-                        // can get more details such as response.headers
-                    }
-                    return Response.success(responseString, HttpHeaderParser.parseCacheHeaders(response));
-                }
-            };
-            stringRequest.setRetryPolicy(new DefaultRetryPolicy(50 * 1000, 5, 1.0f));
-            requestQueue.add(stringRequest);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     private boolean checkInternet() { //returns true if internet is connected
 
