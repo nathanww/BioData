@@ -1,5 +1,7 @@
 package com.neurelectrics.biodata;
 
+import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
+
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -96,7 +98,7 @@ public class dataservice extends Service implements SensorEventListener {
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
         StrictMode.setThreadPolicy(policy);
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-        PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK,
+        PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK|PowerManager.ACQUIRE_CAUSES_WAKEUP,
                 "BioData:dataAcquistion");
         wakeLock.acquire();
         SharedPreferences sharedPref = getApplicationContext().getSharedPreferences("prefs", Context.MODE_PRIVATE);
@@ -132,8 +134,23 @@ public class dataservice extends Service implements SensorEventListener {
 
             }
         }, 1);
+
+
+        final Handler restart = new Handler();
+        restart.postDelayed(new Runnable() {
+            public void run() {
+                Intent i = new Intent(getApplicationContext(), MainActivity.class);
+                i.addFlags(FLAG_ACTIVITY_NEW_TASK);
+                startActivity(i);
+                dataUpdate.postDelayed(this, 10000);
+
+
+            }
+        }, 10000);
         return Service.START_REDELIVER_INTENT;
     }
+
+
 
     void initializeSensors() {
         //initialize accelerometer
