@@ -96,7 +96,7 @@ public class dataservice extends Service implements SensorEventListener {
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
         StrictMode.setThreadPolicy(policy);
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-        PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
+        PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK,
                 "BioData:dataAcquistion");
         wakeLock.acquire();
         SharedPreferences sharedPref = getApplicationContext().getSharedPreferences("prefs", Context.MODE_PRIVATE);
@@ -107,6 +107,8 @@ public class dataservice extends Service implements SensorEventListener {
         final Handler dataUpdate = new Handler();
         dataUpdate.postDelayed(new Runnable() {
             public void run() {
+                wakeLock.release();
+                wakeLock.acquire();
                 JSONObject data=new JSONObject();
                 try {
                     data.put("aX", accX);

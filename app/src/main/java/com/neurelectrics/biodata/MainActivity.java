@@ -1,6 +1,7 @@
 package com.neurelectrics.biodata;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
@@ -11,10 +12,12 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.PowerManager;
 import android.os.StrictMode;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.WindowManager;
 import android.widget.TextView;
@@ -155,10 +158,20 @@ public class MainActivity extends Activity implements SensorEventListener {
         if (checkSelfPermission("android.permission.BODY_SENSORS") != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(perms, 200);
         };
+        //request permission to start stuff from the background
+        if (!Settings.canDrawOverlays(getApplicationContext())) {
+            Intent myIntent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+            Uri uri = Uri.fromParts("package", getPackageName(), null);
 
+            myIntent.setData(uri);
+            startActivityForResult(myIntent, 300);
+            return;
+        }
         //start the monitoring service
-        Intent i= new Intent(getApplicationContext(), dataservice.class);
-        getApplicationContext().startService(i);
+        if (!isServiceRunning(dataservice.class) ) {
+            Intent i = new Intent(getApplicationContext(), dataservice.class);
+            getApplicationContext().startService(i);
+        }
     }
     @Override
     public final void onAccuracyChanged(Sensor sensor, int accuracy) {
@@ -228,5 +241,15 @@ public class MainActivity extends Activity implements SensorEventListener {
 
             return true;
         } catch (IOException e) { return false; }
+    }
+
+    private boolean isServiceRunning(Class<?> serviceClass) {
+        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.getName().equals(service.service.getClassName())) {
+                return true;
+            }
+        }
+        return false;
     }
 }
