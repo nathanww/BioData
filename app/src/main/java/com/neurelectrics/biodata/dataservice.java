@@ -35,6 +35,8 @@ import com.android.volley.toolbox.Volley;
 
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+
 public class dataservice extends Service implements SensorEventListener {
     private SensorManager sm;
     private float accX=-1;
@@ -51,8 +53,31 @@ public class dataservice extends Service implements SensorEventListener {
     private float pressure=-1;
     private float lightlevel=-1;
     private float heartRate=-1;
-    private int ACC_SAMPLE_RATE=1000;  //default is to sample the accelerometer every second
-    private int GLOBAL_UPDATE_RATE=1000;
+    private int ACC_SAMPLE_RATE=500;  //default is to sample the accelerometer every second
+    private int GLOBAL_UPDATE_RATE=5000;
+
+
+    ArrayList<Float> buffer_accX=new ArrayList<Float>();
+    ArrayList<Float> buffer_accY=new ArrayList<Float>();
+    ArrayList<Float> buffer_accZ=new ArrayList<Float>();
+
+    ArrayList<Float> buffer_gX=new ArrayList<Float>();
+    ArrayList<Float> buffer_gY=new ArrayList<Float>();
+    ArrayList<Float> buffer_gZ=new ArrayList<Float>();
+
+    ArrayList<Float> buffer_hr=new ArrayList<Float>();
+
+    ArrayList<Float> buffer_temp=new ArrayList<Float>();
+    ArrayList<Float> buffer_pressure=new ArrayList<Float>();
+    ArrayList<Float> buffer_light=new ArrayList<Float>();
+
+
+
+
+
+
+
+
 
     public dataservice() {
 
@@ -106,6 +131,24 @@ public class dataservice extends Service implements SensorEventListener {
         int pid=sharedPref.getInt("pid",-1);
         //start the sensors
         initializeSensors();
+
+        //this samples the motion senosrs at the target update rate and writes to the buffer
+        final Handler motionUpdate = new Handler();
+        motionUpdate.postDelayed(new Runnable() {
+            public void run() {
+                buffer_accX.add(accX);
+                buffer_accY.add(accY);
+                buffer_accZ.add(accZ);
+                buffer_gX.add(gX);
+                buffer_gY.add(gY);
+                buffer_gZ.add(gZ);
+                //Log.i("sampling","done");
+                motionUpdate.postDelayed(this, ACC_SAMPLE_RATE);
+
+
+            }
+        }, 1000);
+        
         final Handler dataUpdate = new Handler();
         dataUpdate.postDelayed(new Runnable() {
             public void run() {
@@ -113,12 +156,12 @@ public class dataservice extends Service implements SensorEventListener {
                 wakeLock.acquire();
                 JSONObject data=new JSONObject();
                 try {
-                    data.put("aX", accX);
-                    data.put("aY", accY);
-                    data.put("aZ", accZ);
-                    data.put("gX", gX);
-                    data.put("gY", gY);
-                    data.put("gZ", gZ);
+                    data.put("aX", buffer_accX);
+                    data.put("aY", buffer_accY);
+                    data.put("aZ", buffer_accZ);
+                    data.put("gX", buffer_gX);
+                    data.put("gY", buffer_gY);
+                    data.put("gZ", buffer_gZ);
                     data.put("hr", heartRate);
                     data.put("light", lightlevel);
                     data.put("temp", ambientTemp);
@@ -128,7 +171,14 @@ public class dataservice extends Service implements SensorEventListener {
                 catch (Exception e) {
 
                 }
-                sendData(data.toString(),""+pid);
+                if (sendData(data.toString(),""+pid)) { //if this is true, it means the transfer succeeded
+                    buffer_accX.clear();
+                    buffer_accY.clear();
+                    buffer_accZ.clear();
+                    buffer_gX.clear();
+                    buffer_gY.clear();
+                    buffer_gZ.clear();
+                }
                 dataUpdate.postDelayed(this, GLOBAL_UPDATE_RATE);
 
 
@@ -202,7 +252,7 @@ public class dataservice extends Service implements SensorEventListener {
 
         }
     }
-    void sendData(String data, String userID) {
+    boolean sendData(String data, String userID) {
 
         try {
             RequestQueue requestQueue = Volley.newRequestQueue(this);
@@ -234,8 +284,10 @@ public class dataservice extends Service implements SensorEventListener {
             };
             stringRequest.setRetryPolicy(new DefaultRetryPolicy(50 * 1000, 5, 1.0f));
             requestQueue.add(stringRequest);
+            return true;
         } catch (Exception e) {
             e.printStackTrace();
+            return false;
         }
     }
 
