@@ -18,10 +18,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.PowerManager;
 import android.os.StrictMode;
+import android.os.Vibrator;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.WindowManager;
+import android.widget.CompoundButton;
 import android.widget.TextView;
+import android.widget.ToggleButton;
 
 import com.jakewharton.processphoenix.ProcessPhoenix;
 import com.neurelectrics.biodata.databinding.ActivityMainBinding;
@@ -97,9 +100,25 @@ public class MainActivity extends Activity implements SensorEventListener {
         int pid=sharedPref.getInt("pid",-1);
 
 
+        Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        long[] mVibratePattern = new long[]{50,10,100,30,150,50,200,20,200,100};
 
+        // -1 : Do not repeat this pattern
+        // pass 0 if you want to repeat this pattern from 0th index
 
-
+        ToggleButton toggleAlarm = (ToggleButton) findViewById(R.id.toggleButton);
+        toggleAlarm.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if(isChecked)
+                {
+                    vibrator.vibrate(mVibratePattern, 0);
+                }
+                else
+                {
+                    vibrator.cancel();
+                }
+            }
+        });
 
         final Handler netCheck = new Handler();
 

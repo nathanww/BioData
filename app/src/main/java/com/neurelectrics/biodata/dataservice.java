@@ -19,6 +19,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.StrictMode;
+import android.os.Vibrator;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
@@ -53,8 +54,8 @@ public class dataservice extends Service implements SensorEventListener {
     private float pressure=-1;
     private float lightlevel=-1;
     private float heartRate=-1;
-    private int ACC_SAMPLE_RATE=500;  //default is to sample the accelerometer every second
-    private int GLOBAL_UPDATE_RATE=5000;
+    private int ACC_SAMPLE_RATE=1000;  //default is to sample the accelerometer every second
+    private int GLOBAL_UPDATE_RATE=10000;
 
 
     ArrayList<Float> buffer_accX=new ArrayList<Float>();
@@ -70,8 +71,8 @@ public class dataservice extends Service implements SensorEventListener {
     ArrayList<Float> buffer_temp=new ArrayList<Float>();
     ArrayList<Float> buffer_pressure=new ArrayList<Float>();
     ArrayList<Float> buffer_light=new ArrayList<Float>();
-
-
+    SharedPreferences sharedPref;
+    SharedPreferences.Editor editor;
 
 
 
@@ -115,7 +116,8 @@ public class dataservice extends Service implements SensorEventListener {
                 .setContentIntent(pendingIntent)
                 .build();
         startForeground(1, notification);
-
+       sharedPref = getApplicationContext().getSharedPreferences("prefs", Context.MODE_PRIVATE);
+       editor = sharedPref.edit();
 
         //initialize sensor manager
         sm = ((SensorManager)getSystemService(SENSOR_SERVICE));
@@ -123,8 +125,9 @@ public class dataservice extends Service implements SensorEventListener {
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
         StrictMode.setThreadPolicy(policy);
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-        PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK|PowerManager.ACQUIRE_CAUSES_WAKEUP,
+        PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
                 "BioData:dataAcquistion");
+
         wakeLock.acquire();
         SharedPreferences sharedPref = getApplicationContext().getSharedPreferences("prefs", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPref.edit();
@@ -152,8 +155,7 @@ public class dataservice extends Service implements SensorEventListener {
         final Handler dataUpdate = new Handler();
         dataUpdate.postDelayed(new Runnable() {
             public void run() {
-                wakeLock.release();
-                wakeLock.acquire();
+
                 JSONObject data=new JSONObject();
                 try {
                     data.put("aX", buffer_accX);
@@ -171,14 +173,8 @@ public class dataservice extends Service implements SensorEventListener {
                 catch (Exception e) {
 
                 }
-                if (sendData(data.toString(),""+pid)) { //if this is true, it means the transfer succeeded
-                    buffer_accX.clear();
-                    buffer_accY.clear();
-                    buffer_accZ.clear();
-                    buffer_gX.clear();
-                    buffer_gY.clear();
-                    buffer_gZ.clear();
-                }
+                sendData(data.toString(),""+pid);
+
                 dataUpdate.postDelayed(this, GLOBAL_UPDATE_RATE);
 
 
@@ -189,9 +185,11 @@ public class dataservice extends Service implements SensorEventListener {
         final Handler restart = new Handler();
         restart.postDelayed(new Runnable() {
             public void run() {
-                Intent i = new Intent(getApplicationContext(), MainActivity.class);
-                i.addFlags(FLAG_ACTIVITY_NEW_TASK);
-                startActivity(i);
+                if (!sharedPref.getBoolean("running",false)) {
+                    /*Intent i = new Intent(getApplicationContext(), MainActivity.class);
+                    i.addFlags(FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(i);*/
+                }
                 dataUpdate.postDelayed(this, 10000);
 
 
@@ -252,14 +250,15 @@ public class dataservice extends Service implements SensorEventListener {
 
         }
     }
-    boolean sendData(String data, String userID) {
-
+    void sendData(String data, String userID) {
         try {
+
             RequestQueue requestQueue = Volley.newRequestQueue(this);
             String URL = "https://biostream-1024.appspot.com/sendps?user="+userID+"&data="+data;
-
+            boolean worked=false;
 
             StringRequest stringRequest = new StringRequest(Request.Method.GET, URL, new Response.Listener<String>() {
+
                 @Override
                 public void onResponse(String response) {
                     Log.i("VOLLEY", response);
@@ -278,16 +277,23 @@ public class dataservice extends Service implements SensorEventListener {
                     if (response != null) {
                         responseString = String.valueOf(response.statusCode);
                         // can get more details such as response.headers
+                        Log.i("requestStat",""+response.statusCode);
+                        if (response.statusCode == 200) {
+                            buffer_accX.clear();
+                            buffer_accY.clear();
+                            buffer_accZ.clear();
+                            buffer_gX.clear();
+                            buffer_gY.clear();
+                            buffer_gZ.clear();
+                        }
                     }
                     return Response.success(responseString, HttpHeaderParser.parseCacheHeaders(response));
                 }
             };
             stringRequest.setRetryPolicy(new DefaultRetryPolicy(50 * 1000, 5, 1.0f));
             requestQueue.add(stringRequest);
-            return true;
         } catch (Exception e) {
             e.printStackTrace();
-            return false;
         }
     }
 
