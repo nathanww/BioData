@@ -80,7 +80,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         setContentView(binding.getRoot());
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         //initialize sensor manager
-        //sm = ((SensorManager)getSystemService(SENSOR_SERVICE));
+        sm = ((SensorManager)getSystemService(SENSOR_SERVICE));
         //allow internet accsess on UI thread
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
         StrictMode.setThreadPolicy(policy);
@@ -139,7 +139,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             }
         }, 1);
 
-        /*//start the sensors
+        //start the sensors
         initializeSensors();
         final Handler dataUpdate = new Handler();
         dataUpdate.postDelayed(new Runnable() {
@@ -166,7 +166,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
 
             }
-        }, 1);*/
+        }, 1);
 
 
 
@@ -237,6 +237,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     }*/
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
+        //various stuff to attempt to
         /*
         Intent intent = new Intent(MainActivity.this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP
