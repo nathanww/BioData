@@ -139,39 +139,6 @@ public class MainActivity extends Activity implements SensorEventListener {
             }
         }, 1);
 
-        //start the sensors
-        initializeSensors();
-        final Handler dataUpdate = new Handler();
-        dataUpdate.postDelayed(new Runnable() {
-            public void run() {
-                    JSONObject data=new JSONObject();
-                    try {
-                        data.put("aX", accX);
-                        data.put("aY", accY);
-                        data.put("aZ", accZ);
-                        data.put("gX", gX);
-                        data.put("gY", gY);
-                        data.put("gZ", gZ);
-                        data.put("hr", heartRate);
-                        data.put("light", lightlevel);
-                        data.put("temp", ambientTemp);
-                        data.put("pr", pressure);
-                        data.put("aq",System.currentTimeMillis());
-                    }
-                    catch (Exception e) {
-
-                    }
-                    sendData(data.toString(),""+pid);
-                    dataUpdate.postDelayed(this, GLOBAL_UPDATE_RATE);
-
-
-            }
-        }, 1);
-
-
-
-
-
 
     //request to use the body sensors
         String[] perms = {"android.permission.BODY_SENSORS"};

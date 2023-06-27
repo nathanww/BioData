@@ -74,12 +74,6 @@ public class dataservice extends Service implements SensorEventListener {
     SharedPreferences sharedPref;
     SharedPreferences.Editor editor;
 
-
-
-
-
-
-
     public dataservice() {
 
     }
