@@ -52,27 +52,12 @@ import com.android.volley.toolbox.Volley;
 
 import org.json.JSONObject;
 
-public class MainActivity extends Activity implements SensorEventListener {
+public class MainActivity extends Activity  {
 
     private TextView mTextView;
     private ActivityMainBinding binding;
     private SensorManager sm;
-    private float accX=-1;
-    private float accY=-1;
-    private float accZ=-1;
-    private float gX=-1;
-    private float gY=-1;
-    private float gZ=-1;
-    private float mX=-1;
-    private float mY=-1;
-    private float mZ=-1;
 
-    private float ambientTemp=-1;
-    private float pressure=-1;
-    private float lightlevel=-1;
-    private float heartRate=-1;
-    private int ACC_SAMPLE_RATE=1000;  //default is to sample the accelerometer every second
-    private int GLOBAL_UPDATE_RATE=1000;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -160,36 +145,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             getApplicationContext().startService(i);
         }
     }
-    @Override
-    public final void onAccuracyChanged(Sensor sensor, int accuracy) {
-        // Do something here if sensor accuracy changes.
-    }
 
-    @Override
-    public final void onSensorChanged(SensorEvent event) {
-        if (event.sensor.getType()==Sensor.TYPE_ACCELEROMETER) {
-            accX=event.values[0];
-            accY=event.values[1];
-            accZ=event.values[2];
-        }
-        if (event.sensor.getType()==Sensor.TYPE_GYROSCOPE) {
-            gX=event.values[0];
-            gY=event.values[1];
-            gZ=event.values[2];
-        }
-        if (event.sensor.getType()==Sensor.TYPE_HEART_RATE) {
-            heartRate=event.values[0];
-        }
-        if (event.sensor.getType()==Sensor.TYPE_LIGHT) {
-            lightlevel=event.values[0];
-        }
-        if (event.sensor.getType()==Sensor.TYPE_AMBIENT_TEMPERATURE) {
-            ambientTemp=event.values[0];
-        }
-        if (event.sensor.getType()==Sensor.TYPE_PRESSURE) {
-            pressure=event.values[0];
-        }
-    }
 /*
     @Override
     protected void onResume() {
